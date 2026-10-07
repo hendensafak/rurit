@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rURIT — Repair Urit</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+  :root {
+    --bg:#0a0c10; --surface:#111418; --surface2:#181c22; --border:#232830;
+    --accent:#00e5a0; --accent2:#0077ff; --warn:#ff6b35; --text:#e8edf5; --muted:#6b7585;
+    /* device colors */
+    --ud1320:#00e5a0; --uc1800:#0077ff; --uc500:#e8edf5; --urit1280:#f59e0b; --urit1600:#e879f9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+  /* HEADER */
+  header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(10,12,16,0.95);backdrop-filter:blur(12px);flex-shrink:0;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:11px;color:#0a0c10;}
+  .logo-text{font-size:20px;font-weight:800;letter-spacing:2px;line-height:1;}
+  .logo-text .small-r{font-size:14px;font-weight:800;}
+  .logo-text{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .logo-sub{font-size:9px;color:var(--muted);letter-spacing:1px;}
+  .header-right{display:flex;align-items:center;gap:8px;}
+  .sync-status{display:flex;align-items:center;gap:5px;font-size:10px;}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+  .sync-dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s infinite;}
+  .sync-dot.error{background:var(--warn);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .lang-selector{display:flex;gap:3px;}
+  .lang-btn{padding:3px 7px;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'Space Mono',monospace;transition:all 0.15s;}
+  .lang-btn.active{background:rgba(0,229,160,0.12);color:var(--accent);border-color:rgba(0,229,160,0.3);}
+  .header-badges{display:flex;gap:4px;flex-wrap:wrap;}
+  .badge{padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:0.5px;font-family:'Space Mono',monospace;}
+  .badge-ud1320{background:rgba(0,229,160,0.12);color:var(--ud1320);border:1px solid rgba(0,229,160,0.3);}
+  .badge-uc1800{background:rgba(0,119,255,0.12);color:var(--uc1800);border:1px solid rgba(0,119,255,0.3);}
+  .badge-uc500{background:rgba(232,237,245,0.1);color:var(--uc500);border:1px solid rgba(232,237,245,0.25);}
+  .badge-urit1280{background:rgba(245,158,11,0.12);color:var(--urit1280);border:1px solid rgba(245,158,11,0.3);}
+  .badge-urit1600{background:rgba(232,121,249,0.12);color:var(--urit1600);border:1px solid rgba(232,121,249,0.3);}
+  .mobile-btns{display:none;gap:6px;}
+  .mobile-btn{padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;}
+
+  /* LAYOUT */
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:210px 1fr 270px;height:calc(100vh - 56px);}
+
+  /* LEFT */
+  .sidebar-left{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .nav-filter{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface);}
+  .nav-tab{flex:1;min-width:50px;padding:7px 4px;font-size:9px;font-weight:700;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
+  .nav-tab.act{border-bottom-color:currentColor;}
+  .nav-tab.act-ud1320{color:var(--ud1320);}
+  .nav-tab.act-uc1800{color:var(--uc1800);}
+  .nav-tab.act-uc500{color:var(--uc500);}
+  .nav-tab.act-urit1280{color:var(--urit1280);}
+  .nav-tab.act-urit1600{color:var(--urit1600);}
+  .entries-list{flex:1;overflow-y:auto;}
+  .entries-list::-webkit-scrollbar{width:3px;}
+  .entries-list::-webkit-scrollbar-thumb{background:var(--border);}
+  .entry-card{padding:9px 11px;margin:3px 5px;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:all 0.15s;background:var(--surface);}
+  .entry-card:hover{border-color:var(--muted);}
+  .entry-device{font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:2px;}
+  .entry-title{font-size:11px;font-weight:700;margin-bottom:2px;line-height:1.3;}
+  .entry-sub{font-size:10px;color:var(--muted);}
+  .add-btn-wrap{padding:8px;border-top:1px solid var(--border);}
+  .add-btn{width:100%;padding:9px;background:linear-gradient(135deg,var(--accent),#00b87a);color:#0a0c10;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;font-family:'Syne',sans-serif;}
+
+  /* MAIN */
+  main{display:flex;flex-direction:column;overflow:hidden;}
+  .main-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;overflow-x:auto;}
+  .main-tabs::-webkit-scrollbar{height:0;}
+  .main-tab{padding:10px 14px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;}
+  .main-tab.active{color:var(--text);border-bottom-color:var(--accent);}
+  .tab-content{flex:1;overflow-y:auto;padding:16px;}
+  .tab-content::-webkit-scrollbar{width:3px;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* CARDS */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;}
+  .card-title{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-bottom:5px;display:block;text-transform:uppercase;}
+  input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:border-color 0.2s;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  textarea{resize:vertical;min-height:65px;}
+  select{cursor:pointer;}
+  option{background:var(--surface2);}
+  .form-row{display:grid;gap:10px;margin-bottom:10px;}
+  .form-row.two{grid-template-columns:1fr 1fr;}
+  .form-row.three{grid-template-columns:1fr 1fr 1fr;}
+  .form-row.one{grid-template-columns:1fr;}
+  .btn{padding:9px 14px;border-radius:6px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#00b87a);color:#0a0c10;}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-danger{background:rgba(255,107,53,0.1);color:var(--warn);border:1px solid rgba(255,107,53,0.25);}
+  .btn-ai{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;width:100%;justify-content:center;}
+  .btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;border-left:3px solid;}
+  .stat-val{font-size:24px;font-weight:800;font-family:'Space Mono',monospace;}
+  .stat-lbl{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-top:2px;}
+  .conf-bar{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin:6px 0 4px;}
+  .conf-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width 1s;}
+
+  /* PARTS */
+  .parts-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;}
+  .part-chip{background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.2);color:var(--accent);padding:2px 10px;border-radius:20px;font-size:11px;font-family:'Space Mono',monospace;}
+
+  /* ERROR CODES */
+  .ec-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .ec-card{background:var(--surface2);border:1px solid rgba(255,107,53,0.2);border-radius:6px;padding:10px 12px;}
+  .ec-code{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--warn);}
+  .ec-desc{font-size:11px;color:var(--muted);margin-top:3px;}
+  .ec-fix{font-size:10px;color:var(--accent);margin-top:3px;}
+
+  /* FILES */
+  .file-drop{border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2);}
+  .file-drop:hover,.file-drop.drag{border-color:var(--accent);background:rgba(0,229,160,0.04);}
+  .file-input{display:none;}
+  .files-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  .file-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+  .file-thumb-placeholder{width:100%;height:70px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;}
+  .file-info{padding:8px;}
+  .file-name{font-size:10px;font-weight:700;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-meta{font-size:9px;color:var(--muted);}
+  .progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s;}
+
+  /* DEVICES GRID */
+  .device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+  .comp-item{display:flex;align-items:center;gap:7px;padding:3px 0;color:var(--muted);font-size:11px;}
+  .comp-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+
+  /* AI */
+  .sidebar-right{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);}
+  .ai-header{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .ai-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s infinite;}
+  .ai-title{font-size:12px;font-weight:700;}
+  .ai-sub{font-size:9px;color:var(--muted);}
+  .ai-close-btn{display:none;align-items:center;justify-content:center;width:28px;height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;margin-left:auto;color:var(--text);}
+  .ai-chat{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .ai-chat::-webkit-scrollbar{width:3px;}
+  .msg{max-width:92%;padding:9px 11px;border-radius:10px;font-size:11px;line-height:1.6;}
+  .msg.user{align-self:flex-end;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.2);}
+  .msg.ai{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);}
+  .msg-label{font-size:8px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:3px;}
+  .ai-bottom{padding:10px;border-top:1px solid var(--border);flex-shrink:0;}
+  .quick-btns{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px;}
+  .quick-btn{font-size:9px;padding:3px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;}
+  .quick-btn:hover{border-color:var(--accent);color:var(--text);}
+  .ai-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 11px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;resize:none;min-height:55px;outline:none;margin-bottom:8px;}
+  .ai-input:focus{border-color:rgba(99,102,241,0.5);}
+
+  /* MISC */
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--surface);border:1px solid var(--accent);color:var(--accent);padding:10px 18px;border-radius:8px;font-weight:700;font-size:12px;box-shadow:0 4px 20px rgba(0,229,160,0.2);}
+  .toast.warn{border-color:var(--warn);color:var(--warn);}
+  .drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100;backdrop-filter:blur(2px);}
+  .drawer-overlay.open{display:block;}
+  .empty{text-align:center;padding:30px 20px;color:var(--muted);}
+  .empty-icon{font-size:32px;margin-bottom:8px;}
+  .empty-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+  .empty-desc{font-size:12px;}
+
+  /* RTL support for Arabic */
+  [dir="rtl"] .sidebar-left{border-right:none;border-left:1px solid var(--border);}
+  [dir="rtl"] .sidebar-right{border-left:none;border-right:1px solid var(--border);}
+
+  /* MOBILE */
+  @media(max-width:768px){
+    .app{grid-template-columns:1fr;}
+    .header-badges{display:none;}
+    .logo-sub{display:none;}
+    .mobile-btns{display:flex;}
+    .sidebar-left{position:fixed;top:0;left:0;bottom:0;width:80vw;max-width:300px;z-index:101;background:var(--bg);transform:translateX(-100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
+    .sidebar-left.open{transform:translateX(0);}
+    .sidebar-right{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;max-width:100%;z-index:101;background:#0a0c10 !important;transform:translateY(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
+    .sidebar-right.open{transform:translateY(0);}
+    .ai-close-btn{display:flex !important;}
+    .device-grid{grid-template-columns:1fr;}
+    .ec-grid{grid-template-columns:1fr;}
+    .form-row.three{grid-template-columns:1fr;}
+    .stats-grid{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">rU</div>
+    <div>
+      <div class="logo-text"><span style="font-size:14px;">r</span>URIT</div>
+      <div class="logo-sub">REPAIR URIT</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="sync-status">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel" style="color:var(--muted);font-size:10px;" data-i18n="connecting">Bağlanıyor...</span>
+    </div>
+    <div class="lang-selector">
+      <button class="lang-btn active" onclick="setLang('tr')">TR</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('ar')">AR</button>
+      <button class="lang-btn" onclick="setLang('zh')">ZH</button>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-ud1320">UD-1320</span>
+      <span class="badge badge-uc1800">UC-1800</span>
+      <span class="badge badge-uc500">UC-500</span>
+      <span class="badge badge-urit1280">Urit-1280</span>
+      <span class="badge badge-urit1600">Urit-1600</span>
+    </div>
+    <div class="mobile-btns">
+      <button class="mobile-btn" onclick="toggleLeft()">☰</button>
+      <button class="mobile-btn" onclick="toggleRight()">⚡ AI</button>
+    </div>
+  </div>
+</header>
+
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawers()"></div>
+
+<div class="app">
+  <div class="sidebar-left" id="sidebarLeft">
+    <div class="nav-filter" id="navFilter">
+      <button class="nav-tab act act-ud1320" onclick="setFilter('all')" data-i18n="all">TÜMÜ</button>
+      <button class="nav-tab" onclick="setFilter('ud1320')">UD-1320</button>
+      <button class="nav-tab" onclick="setFilter('uc1800')">UC-1800</button>
+      <button class="nav-tab" onclick="setFilter('uc500')">UC-500</button>
+      <button class="nav-tab" onclick="setFilter('urit1280')">1280</button>
+      <button class="nav-tab" onclick="setFilter('urit1600')">1600</button>
+    </div>
+    <div class="entries-list" id="entriesList"></div>
+    <div class="add-btn-wrap">
+      <button class="add-btn" onclick="showMainTab('add')" data-i18n="newRecord">➕ Yeni Kayıt</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="main-tabs">
+      <button class="main-tab active" onclick="showMainTab('overview')" data-i18n="overview">📊 Genel</button>
+      <button class="main-tab" onclick="showMainTab('add')" data-i18n="add">➕ Ekle</button>
+      <button class="main-tab" onclick="showMainTab('errors')" data-i18n="errors">⚠️ Hatalar</button>
+      <button class="main-tab" onclick="showMainTab('files')" data-i18n="files">📁 Dosyalar</button>
+      <button class="main-tab" onclick="showMainTab('devices')" data-i18n="devices">🔬 Cihazlar</button>
+    </div>
+
+    <div class="tab-content">
+
+      <!-- OVERVIEW -->
+      <div class="tab-panel active" id="panel-overview">
+        <div class="stats-grid">
+          <div class="stat-card" style="border-left-color:var(--ud1320)"><div class="stat-val" id="s-ud1320">—</div><div class="stat-lbl">UD-1320</div></div>
+          <div class="stat-card" style="border-left-color:var(--uc1800)"><div class="stat-val" id="s-uc1800">—</div><div class="stat-lbl">UC-1800</div></div>
+          <div class="stat-card" style="border-left-color:var(--uc500)"><div class="stat-val" id="s-uc500">—</div><div class="stat-lbl">UC-500</div></div>
+          <div class="stat-card" style="border-left-color:var(--urit1280)"><div class="stat-val" id="s-urit1280">—</div><div class="stat-lbl">Urit-1280</div></div>
+          <div class="stat-card" style="border-left-color:var(--urit1600)"><div class="stat-val" id="s-urit1600">—</div><div class="stat-lbl">Urit-1600</div></div>
+          <div class="stat-card" style="border-left-color:var(--warn)"><div class="stat-val" id="s-ec">—</div><div class="stat-lbl" data-i18n="errorCodes">HATA KODU</div></div>
+        </div>
+        <div class="card">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;">🧠 <span data-i18n="confidence">Algoritma Güven Skoru</span></div>
+          <div class="conf-bar"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+          <div style="font-size:10px;color:var(--muted);" id="confLabel" data-i18n="waitingData">Veri bekleniyor...</div>
+        </div>
+        <div id="recentList"></div>
+      </div>
+
+      <!-- ADD -->
+      <div class="tab-panel" id="panel-add">
+        <div class="card">
+          <div class="card-title" data-i18n="deviceProblem">Cihaz & Sorun</div>
+          <div class="form-row three">
+            <div><label data-i18n="device">Cihaz</label>
+              <select id="f-device">
+                <option value="ud1320">UD-1320</option>
+                <option value="uc1800">UC-1800</option>
+                <option value="uc500">UC-500</option>
+                <option value="urit1280">Urit-1280</option>
+                <option value="urit1600">Urit-1600</option>
+              </select>
+            </div>
+            <div><label data-i18n="type">Tür</label>
+              <select id="f-type">
+                <option value="repair" data-i18n="repair">TAMİR</option>
+                <option value="pump" data-i18n="pump">POMPA</option>
+                <option value="sensor" data-i18n="sensor">SENSÖR</option>
+                <option value="optical" data-i18n="optical">OPTİK</option>
+                <option value="fluid" data-i18n="fluid">SIVI</option>
+                <option value="error" data-i18n="errorCode">HATA KODU</option>
+              </select>
+            </div>
+            <div><label data-i18n="date">Tarih</label><input type="date" id="f-date"></div>
+          </div>
+          <div class="form-row one"><div><label data-i18n="problem">Sorun / Hata</label><input type="text" id="f-problem"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title" data-i18n="obsAndSolution">Gözlem & Çözüm</div>
+          <div class="form-row one"><div><label data-i18n="symptoms">Semptomlar</label><textarea id="f-symptoms"></textarea></div></div>
+          <div class="form-row one"><div><label data-i18n="solution">Çözüm</label><textarea id="f-solution"></textarea></div></div>
+          <div class="form-row two">
+            <div><label data-i18n="parts">Parçalar (virgülle)</label><input type="text" id="f-parts"></div>
+            <div><label data-i18n="result">Sonuç</label>
+              <select id="f-result">
+                <option value="solved">✅ Çözüldü</option>
+                <option value="partial">⚠️ Kısmen</option>
+                <option value="ongoing">🔄 Devam</option>
+                <option value="unknown">❓ Belirsiz</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row one"><div><label data-i18n="notes">Notlar</label><textarea id="f-notes"></textarea></div></div>
+          <div class="form-actions">
+            <button class="btn btn-secondary" onclick="clearEntryForm()" data-i18n="clear">Temizle</button>
+            <button class="btn btn-primary" id="saveEntryBtn" onclick="saveEntry()">💾 <span data-i18n="save">Kaydet</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ERRORS -->
+      <div class="tab-panel" id="panel-errors">
+        <div class="card">
+          <div class="card-title" data-i18n="teachError">Yeni Hata Kodu Öğret</div>
+          <div class="form-row three">
+            <div><label data-i18n="device">Cihaz</label>
+              <select id="ec-device">
+                <option value="ud1320">UD-1320</option>
+                <option value="uc1800">UC-1800</option>
+                <option value="uc500">UC-500</option>
+                <option value="urit1280">Urit-1280</option>
+                <option value="urit1600">Urit-1600</option>
+              </select>
+            </div>
+            <div><label data-i18n="errorCode">Hata Kodu</label><input type="text" id="ec-code" placeholder="E-04 / ERR-12"></div>
+            <div><label data-i18n="component">Bileşen</label>
+              <select id="ec-component">
+                <option value="pump">Pompa</option>
+                <option value="sensor">Sensör</option>
+                <option value="optical">Optik</option>
+                <option value="fluid">Sıvı</option>
+                <option value="motor">Motor</option>
+                <option value="board">Ana Kart</option>
+                <option value="software">Yazılım</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row one"><div><label data-i18n="description">Açıklama</label><input type="text" id="ec-desc"></div></div>
+          <div class="form-row one"><div><label data-i18n="knownFix">Bilinen Çözüm</label><textarea id="ec-fix" style="min-height:50px;"></textarea></div></div>
+          <div class="form-actions"><button class="btn btn-primary" id="saveEcBtn" onclick="saveErrorCode()">📖 <span data-i18n="save">Kaydet</span></button></div>
+        </div>
+        <div id="ecList"></div>
+      </div>
+
+      <!-- FILES -->
+      <div class="tab-panel" id="panel-files">
+        <div class="card">
+          <div class="card-title" data-i18n="uploadFile">Dosya / Fotoğraf Yükle</div>
+          <div class="form-row two">
+            <div><label data-i18n="device">Cihaz</label>
+              <select id="file-device">
+                <option value="ud1320">UD-1320</option>
+                <option value="uc1800">UC-1800</option>
+                <option value="uc500">UC-500</option>
+                <option value="urit1280">Urit-1280</option>
+                <option value="urit1600">Urit-1600</option>
+              </select>
+            </div>
+            <div><label data-i18n="category">Kategori</label>
+              <select id="file-category">
+                <option value="menu">Menü Ekranı</option>
+                <option value="error_screen">Hata Ekranı</option>
+                <option value="diagram">Diyagram / Şema</option>
+                <option value="other">Diğer</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row one"><div><label data-i18n="description">Açıklama</label><input type="text" id="file-desc"></div></div>
+          <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()"
+               ondragover="event.preventDefault();this.classList.add('drag')"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="handleDrop(event)">
+            <div style="font-size:28px;margin-bottom:6px;">📁</div>
+            <div style="font-size:13px;font-weight:700;margin-bottom:3px;" data-i18n="selectFile">Dosya seç veya sürükle</div>
+            <div style="font-size:11px;color:var(--muted);">JPG, PNG, PDF</div>
+          </div>
+          <input type="file" id="fileInput" class="file-input" multiple accept="image/*,.pdf" onchange="handleFileSelect(event)">
+          <div id="uploadProgress" style="display:none;margin-top:10px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" id="uploadLabel"></div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div id="filesList"></div>
+      </div>
+
+      <!-- DEVICES -->
+      <div class="tab-panel" id="panel-devices">
+        <div class="device-grid">
+
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="badge badge-ud1320">UD-1320</span>
+              <span style="font-size:12px;font-weight:700;" data-i18n="sedimentAnalyzer">Sediment Analizör</span>
+            </div>
+            <div class="card" style="font-size:11px;">
+              <div class="card-title">Bileşenler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Pompa-1 Numune</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Pompa-2 Sheath</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Pompa-3 Atık</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>Flow Cell</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>CCD Kamera + LED</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#eab308"></span>Sensörler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--warn)"></span>Ana Kart + AI</div>
+            </div>
+            <div class="card"><div style="font-size:10px;color:var(--muted);line-height:2;">· 120 T/H · Flow cell AI/CNN · RBC/WBC/bakteri</div></div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="badge badge-uc1800">UC-1800</span>
+              <span style="font-size:12px;font-weight:700;" data-i18n="chemAnalyzer">Kuru Kimya</span>
+            </div>
+            <div class="card" style="font-size:11px;">
+              <div class="card-title">Bileşenler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Otomatik Şerit Mek.</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>4 Yönlü Sprey Probe</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>CIS Optik 5 dalga</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>Sıcaklık Kontrolü</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#eab308"></span>Sample Probe</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--warn)"></span>CPU + 10.4" Ekran</div>
+            </div>
+            <div class="card"><div style="font-size:10px;color:var(--muted);line-height:2;">· 480 T/H · 14 parametre · FDA 510(k)</div></div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="badge badge-uc500">UC-500</span>
+              <span style="font-size:12px;font-weight:700;">Kombine Analiz</span>
+            </div>
+            <div class="card" style="font-size:11px;">
+              <div class="card-title">Bileşenler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Sediment Flow Cell</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Pompa Sistemi</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>CCD Kamera + LED</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>Kuru Kimya Şerit</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#eab308"></span>Sensörler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--warn)"></span>Ana Kart</div>
+            </div>
+            <div class="card"><div style="font-size:10px;color:var(--muted);line-height:2;">· Kombine sediment + kimya · Tek cihaz çift analiz</div></div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="badge badge-urit1280">Urit-1280</span>
+              <span style="font-size:12px;font-weight:700;">Sediment (Eski Nesil)</span>
+            </div>
+            <div class="card" style="font-size:11px;">
+              <div class="card-title">Bileşenler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#f59e0b"></span>3 Kanallı Flow Cell</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#0077ff"></span>Pompa Sistemi</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>Yatay Optik Sistem</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#eab308"></span>Sensörler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--warn)"></span>Ana Kart</div>
+            </div>
+            <div class="card"><div style="font-size:10px;color:var(--muted);line-height:2;">· Yatay tasarım · 3 kanallı flow cell · UD-1320 öncesi nesil</div></div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="badge badge-urit1600">Urit-1600</span>
+              <span style="font-size:12px;font-weight:700;">Kuru Kimya (Eski Nesil)</span>
+            </div>
+            <div class="card" style="font-size:11px;">
+              <div class="card-title">Bileşenler</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#e879f9"></span>Strip Okuyucu</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>Optik Tarama</div>
+              <div class="comp-item"><span class="comp-dot" style="background:#eab308"></span>Şerit Taşıma Mek.</div>
+              <div class="comp-item"><span class="comp-dot" style="background:var(--warn)"></span>Ana Kart</div>
+            </div>
+            <div class="card"><div style="font-size:10px;color:var(--muted);line-height:2;">· Strip/şerit okuyucu · UC-1800 öncesi nesil · Kuru kimya analiz</div></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <div class="sidebar-right" id="sidebarRight">
+    <div class="ai-header">
+      <div class="ai-dot"></div>
+      <div>
+        <div class="ai-title">rURIT AI</div>
+        <div class="ai-sub" data-i18n="diagnosisEngine">Tanı & Tavsiye Motoru</div>
+      </div>
+      <button class="ai-close-btn" onclick="closeDrawers()">✕</button>
+    </div>
+    <div class="ai-chat" id="aiChat">
+      <div class="msg ai">
+        <div class="msg-label">▸ rURIT AI</div>
+        <span data-i18n="aiWelcome">Merhaba! Kayıt ve dosya girdikçe daha iyi tanı üretebilirim. Sorununu tarif et! 🔧</span>
+      </div>
+    </div>
+    <div class="ai-bottom">
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="quickAsk(t('lowReading'))">düşük okuma</button>
+        <button class="quick-btn" onclick="quickAsk(t('pumpFault'))">pompa arızası</button>
+        <button class="quick-btn" onclick="quickAsk('Flow cell temizliği?')">flow cell</button>
+        <button class="quick-btn" onclick="quickAsk('Şerit hatası?')">şerit</button>
+      </div>
+      <textarea class="ai-input" id="aiInput" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askAI();}"></textarea>
+      <button class="btn btn-ai" onclick="askAI()" id="aiBtn">⚡ <span data-i18n="askRurit">RURIT'e Sor</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div id="detailModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);overflow-y:auto;padding:16px;">
+  <div style="max-width:580px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div id="modalContent" style="flex:1;"></div>
+      <button onclick="closeModal()" style="padding:5px 10px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;margin-left:12px;flex-shrink:0;">✕</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== SUPABASE ====================
+const SUPABASE_URL = 'https://jifiazvxdfcatzlhmpqu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppZmlhenZ4ZGZjYXR6bGhtcHF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNzg3OTksImV4cCI6MjA4ODY1NDc5OX0.I5rzz0ihTOYOfqm_jrvB22JyztvwSMmk2EK5eJ9X-EI';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ==================== I18N ====================
+const LANGS = {
+  tr: {
+    connecting:'Bağlanıyor...', connected:'Bağlı', disconnected:'Bağlantı yok',
+    all:'TÜMÜ', newRecord:'➕ Yeni Kayıt', overview:'📊 Genel', add:'➕ Ekle',
+    errors:'⚠️ Hatalar', files:'📁 Dosyalar', devices:'🔬 Cihazlar',
+    device:'Cihaz', type:'Tür', date:'Tarih', problem:'Sorun / Hata',
+    symptoms:'Semptomlar', solution:'Çözüm', parts:'Parçalar (virgülle)',
+    result:'Sonuç', notes:'Notlar', clear:'Temizle', save:'Kaydet',
+    deviceProblem:'Cihaz & Sorun', obsAndSolution:'Gözlem & Çözüm',
+    repair:'TAMİR', pump:'POMPA', sensor:'SENSÖR', optical:'OPTİK', fluid:'SIVI', errorCode:'HATA KODU',
+    teachError:'Yeni Hata Kodu Öğret', component:'Bileşen', description:'Açıklama', knownFix:'Bilinen Çözüm',
+    uploadFile:'Dosya / Fotoğraf Yükle', category:'Kategori', selectFile:'Dosya seç veya sürükle',
+    confidence:'Algoritma Güven Skoru', waitingData:'Veri bekleniyor...', errorCodes:'HATA KODU',
+    sedimentAnalyzer:'Sediment Analizör', chemAnalyzer:'Kuru Kimya',
+    diagnosisEngine:'Tanı & Tavsiye Motoru', askRurit:'RURIT\'e Sor',
+    aiWelcome:'Merhaba! Kayıt ve dosya girdikçe daha iyi tanı üretebilirim. Sorununu tarif et! 🔧',
+    lowReading:'Düşük okuma sorunu?', pumpFault:'Pompa arızası nedenleri?',
+    recentRecords:'SON KAYITLAR', noRecords:'Kayıt yok', addFirst:'İlk tamir kaydını ekle',
+    eachRecord:'Her kayıt sistemi daha akıllı yapar',
+    solved:'✅ Çözüldü', partial:'⚠️ Kısmen', ongoing:'🔄 Devam', unknown:'❓ Belirsiz',
+    deleteConfirm:'Bu kaydı silmek istiyor musunuz?', deleted:'🗑 Silindi',
+    recordAdded:'✅ Kayıt eklendi!', problemRequired:'⚠️ Sorun alanı boş!',
+    codeRequired:'⚠️ Kod ve açıklama gerekli!', errorLearned:'📖 Hata kodu öğrenildi!',
+    filesUploaded:'dosya yüklendi!', uploadError:'Yükleme hatası',
+    aiInputPlaceholder:'Sorun tarif et... (Enter gönder)',
+  },
+  en: {
+    connecting:'Connecting...', connected:'Connected', disconnected:'No connection',
+    all:'ALL', newRecord:'➕ New Record', overview:'📊 Overview', add:'➕ Add',
+    errors:'⚠️ Errors', files:'📁 Files', devices:'🔬 Devices',
+    device:'Device', type:'Type', date:'Date', problem:'Problem / Error',
+    symptoms:'Symptoms', solution:'Solution', parts:'Parts (comma separated)',
+    result:'Result', notes:'Notes', clear:'Clear', save:'Save',
+    deviceProblem:'Device & Problem', obsAndSolution:'Observation & Solution',
+    repair:'REPAIR', pump:'PUMP', sensor:'SENSOR', optical:'OPTICAL', fluid:'FLUID', errorCode:'ERROR CODE',
+    teachError:'Teach New Error Code', component:'Component', description:'Description', knownFix:'Known Fix',
+    uploadFile:'Upload File / Photo', category:'Category', selectFile:'Select or drag file',
+    confidence:'Algorithm Confidence Score', waitingData:'Waiting for data...', errorCodes:'ERROR CODE',
+    sedimentAnalyzer:'Sediment Analyzer', chemAnalyzer:'Dry Chemistry',
+    diagnosisEngine:'Diagnosis & Advice Engine', askRurit:'Ask RURIT',
+    aiWelcome:'Hello! I learn as you add records and files. Describe your problem! 🔧',
+    lowReading:'Low reading problem?', pumpFault:'Pump failure reasons?',
+    recentRecords:'RECENT RECORDS', noRecords:'No records', addFirst:'Add your first repair record',
+    eachRecord:'Each record makes the system smarter',
+    solved:'✅ Solved', partial:'⚠️ Partial', ongoing:'🔄 Ongoing', unknown:'❓ Unknown',
+    deleteConfirm:'Are you sure you want to delete this record?', deleted:'🗑 Deleted',
+    recordAdded:'✅ Record added!', problemRequired:'⚠️ Problem field is empty!',
+    codeRequired:'⚠️ Code and description required!', errorLearned:'📖 Error code learned!',
+    filesUploaded:'files uploaded!', uploadError:'Upload error',
+    aiInputPlaceholder:'Describe the problem... (Enter to send)',
+  },
+  ar: {
+    connecting:'جاري الاتصال...', connected:'متصل', disconnected:'لا يوجد اتصال',
+    all:'الكل', newRecord:'➕ سجل جديد', overview:'📊 عام', add:'➕ إضافة',
+    errors:'⚠️ أخطاء', files:'📁 ملفات', devices:'🔬 أجهزة',
+    device:'الجهاز', type:'النوع', date:'التاريخ', problem:'المشكلة / الخطأ',
+    symptoms:'الأعراض', solution:'الحل', parts:'القطع (مفصولة بفواصل)',
+    result:'النتيجة', notes:'ملاحظات', clear:'مسح', save:'حفظ',
+    deviceProblem:'الجهاز والمشكلة', obsAndSolution:'الملاحظة والحل',
+    repair:'إصلاح', pump:'مضخة', sensor:'حساس', optical:'بصري', fluid:'سائل', errorCode:'كود خطأ',
+    teachError:'تعليم كود خطأ جديد', component:'المكوّن', description:'الوصف', knownFix:'الحل المعروف',
+    uploadFile:'رفع ملف / صورة', category:'الفئة', selectFile:'اختر أو اسحب ملفاً',
+    confidence:'درجة ثقة الخوارزمية', waitingData:'في انتظار البيانات...', errorCodes:'كود خطأ',
+    sedimentAnalyzer:'محلل الرواسب', chemAnalyzer:'الكيمياء الجافة',
+    diagnosisEngine:'محرك التشخيص والنصائح', askRurit:'اسأل RURIT',
+    aiWelcome:'مرحباً! أتعلم كلما أضفت سجلات. صف مشكلتك! 🔧',
+    lowReading:'مشكلة قراءة منخفضة؟', pumpFault:'أسباب عطل المضخة؟',
+    recentRecords:'السجلات الأخيرة', noRecords:'لا توجد سجلات', addFirst:'أضف أول سجل إصلاح',
+    eachRecord:'كل سجل يجعل النظام أذكى',
+    solved:'✅ تم الحل', partial:'⚠️ جزئي', ongoing:'🔄 جاري', unknown:'❓ غير معروف',
+    deleteConfirm:'هل تريد حذف هذا السجل؟', deleted:'🗑 تم الحذف',
+    recordAdded:'✅ تمت إضافة السجل!', problemRequired:'⚠️ حقل المشكلة فارغ!',
+    codeRequired:'⚠️ الكود والوصف مطلوبان!', errorLearned:'📖 تم تعلم كود الخطأ!',
+    filesUploaded:'ملفات تم رفعها!', uploadError:'خطأ في الرفع',
+    aiInputPlaceholder:'صف المشكلة... (Enter للإرسال)',
+  },
+  zh: {
+    connecting:'连接中...', connected:'已连接', disconnected:'无连接',
+    all:'全部', newRecord:'➕ 新记录', overview:'📊 概览', add:'➕ 添加',
+    errors:'⚠️ 错误', files:'📁 文件', devices:'🔬 设备',
+    device:'设备', type:'类型', date:'日期', problem:'问题 / 错误',
+    symptoms:'症状', solution:'解决方案', parts:'零件（逗号分隔）',
+    result:'结果', notes:'备注', clear:'清除', save:'保存',
+    deviceProblem:'设备与问题', obsAndSolution:'观察与解决',
+    repair:'维修', pump:'泵', sensor:'传感器', optical:'光学', fluid:'液体', errorCode:'错误代码',
+    teachError:'教学新错误代码', component:'组件', description:'描述', knownFix:'已知解决方案',
+    uploadFile:'上传文件 / 照片', category:'类别', selectFile:'选择或拖放文件',
+    confidence:'算法置信度', waitingData:'等待数据...', errorCodes:'错误代码',
+    sedimentAnalyzer:'沉渣分析仪', chemAnalyzer:'干化学',
+    diagnosisEngine:'诊断与建议引擎', askRurit:'问RURIT',
+    aiWelcome:'你好！随着你添加记录，我会学习得越来越好。描述你的问题！ 🔧',
+    lowReading:'读数偏低问题？', pumpFault:'泵故障原因？',
+    recentRecords:'最近记录', noRecords:'无记录', addFirst:'添加第一条维修记录',
+    eachRecord:'每条记录让系统更智能',
+    solved:'✅ 已解决', partial:'⚠️ 部分解决', ongoing:'🔄 进行中', unknown:'❓ 未知',
+    deleteConfirm:'确定要删除此记录吗？', deleted:'🗑 已删除',
+    recordAdded:'✅ 记录已添加！', problemRequired:'⚠️ 问题字段不能为空！',
+    codeRequired:'⚠️ 需要代码和描述！', errorLearned:'📖 已学习错误代码！',
+    filesUploaded:'个文件已上传！', uploadError:'上传错误',
+    aiInputPlaceholder:'描述问题... (Enter发送)',
+  }
+};
+
+let currentLang = 'tr';
+function t(key) { return LANGS[currentLang][key] || LANGS['tr'][key] || key; }
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent === lang.toUpperCase()));
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  applyTranslations();
+  renderAll();
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (LANGS[currentLang][key]) el.textContent = LANGS[currentLang][key];
+  });
+  const aiInput = document.getElementById('aiInput');
+  if (aiInput) aiInput.placeholder = t('aiInputPlaceholder');
+}
+
+// ==================== STATE ====================
+let entries = [], errorCodes = [], files = [], currentFilter = 'all', selectedId = null, aiLoading = false;
+
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+// ==================== DEVICE HELPERS ====================
+const DEV_NAMES = { ud1320:'UD-1320', uc1800:'UC-1800', uc500:'UC-500', urit1280:'Urit-1280', urit1600:'Urit-1600' };
+const DEV_COLORS = { ud1320:'var(--ud1320)', uc1800:'var(--uc1800)', uc500:'var(--uc500)', urit1280:'var(--urit1280)', urit1600:'var(--urit1600)' };
+const DEV_BADGES = { ud1320:'badge-ud1320', uc1800:'badge-uc1800', uc500:'badge-uc500', urit1280:'badge-urit1280', urit1600:'badge-urit1600' };
+function devName(d) { return DEV_NAMES[d] || d; }
+function devColor(d) { return DEV_COLORS[d] || 'var(--muted)'; }
+function devBadge(d) { return DEV_BADGES[d] || ''; }
+
+// ==================== INIT ====================
+async function init() {
+  await checkConn();
+  await Promise.all([loadEntries(), loadErrorCodes(), loadFiles()]);
+  applyTranslations();
+}
+
+async function checkConn() {
+  try {
+    const { error } = await db.from('entries').select('id').limit(1);
+    if (error) throw error;
+    setSyncStatus(true);
+  } catch { setSyncStatus(false); }
+}
+
+function setSyncStatus(ok) {
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  dot.className = 'sync-dot ' + (ok ? 'online' : 'error');
+  lbl.textContent = ok ? t('connected') : t('disconnected');
+  lbl.style.color = ok ? 'var(--accent)' : 'var(--warn)';
+}
+
+// ==================== DATA ====================
+async function loadEntries() {
+  const { data } = await db.from('entries').select('*').order('created_at', { ascending: false });
+  entries = data || [];
+  renderEntries(); renderOverview(); updateStats();
+}
+
+async function loadErrorCodes() {
+  const { data } = await db.from('error_codes').select('*').order('created_at', { ascending: false });
+  errorCodes = data || [];
+  renderErrorCodes(); updateStats();
+}
+
+async function loadFiles() {
+  const { data } = await db.from('files').select('*').order('created_at', { ascending: false });
+  files = data || [];
+  renderFiles(); updateStats();
+}
+
+function renderAll() { renderEntries(); renderOverview(); renderErrorCodes(); renderFiles(); updateStats(); }
+
+async function saveEntry() {
+  const problem = document.getElementById('f-problem').value.trim();
+  if (!problem) { showToast(t('problemRequired'), 'warn'); return; }
+  const btn = document.getElementById('saveEntryBtn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  const { error } = await db.from('entries').insert([{
+    device: document.getElementById('f-device').value,
+    type: document.getElementById('f-type').value,
+    date: document.getElementById('f-date').value,
+    problem,
+    symptoms: document.getElementById('f-symptoms').value.trim(),
+    solution: document.getElementById('f-solution').value.trim(),
+    parts: document.getElementById('f-parts').value.split(',').map(p=>p.trim()).filter(Boolean),
+    result: document.getElementById('f-result').value,
+    notes: document.getElementById('f-notes').value.trim()
+  }]);
+  btn.disabled = false; btn.innerHTML = '💾 ' + t('save');
+  if (error) { showToast(error.message, 'warn'); return; }
+  showToast(t('recordAdded'));
+  clearEntryForm();
+  await loadEntries();
+  showMainTab('overview');
+}
+
+async function deleteEntry(id) {
+  if (!confirm(t('deleteConfirm'))) return;
+  await db.from('entries').delete().eq('id', id);
+  showToast(t('deleted')); closeModal(); await loadEntries();
+}
+
+function clearEntryForm() {
+  ['f-problem','f-symptoms','f-solution','f-parts','f-notes'].forEach(id => document.getElementById(id).value='');
+}
+
+async function saveErrorCode() {
+  const code = document.getElementById('ec-code').value.trim();
+  const desc = document.getElementById('ec-desc').value.trim();
+  if (!code || !desc) { showToast(t('codeRequired'), 'warn'); return; }
+  const btn = document.getElementById('saveEcBtn'); btn.disabled = true;
+  await db.from('error_codes').insert([{
+    device: document.getElementById('ec-device').value, code,
+    component: document.getElementById('ec-component').value,
+    description: desc, fix: document.getElementById('ec-fix').value.trim()
+  }]);
+  btn.disabled = false;
+  showToast(t('errorLearned'));
+  document.getElementById('ec-code').value = '';
+  document.getElementById('ec-desc').value = '';
+  document.getElementById('ec-fix').value = '';
+  await loadErrorCodes();
+}
+
+function handleDrop(e) { e.preventDefault(); document.getElementById('fileDrop').classList.remove('drag'); uploadFiles(Array.from(e.dataTransfer.files)); }
+function handleFileSelect(e) { uploadFiles(Array.from(e.target.files)); }
+
+async function uploadFiles(fileList) {
+  if (!fileList.length) return;
+  const device = document.getElementById('file-device').value;
+  const category = document.getElementById('file-category').value;
+  const desc = document.getElementById('file-desc').value.trim();
+  const prog = document.getElementById('uploadProgress');
+  const fill = document.getElementById('progressFill');
+  const lbl = document.getElementById('uploadLabel');
+  prog.style.display = 'block';
+  for (let i = 0; i < fileList.length; i++) {
+    const f = fileList[i];
+    lbl.textContent = `${f.name} (${i+1}/${fileList.length})`;
+    fill.style.width = `${((i+1)/fileList.length)*100}%`;
+    const path = `${device}/${category}/${Date.now()}_${i}.${f.name.split('.').pop()}`;
+    const { error } = await db.storage.from('rurit-files').upload(path, f);
+    if (!error) await db.from('files').insert([{ device, category, filename: f.name, storage_path: path, description: desc }]);
+  }
+  prog.style.display = 'none'; fill.style.width = '0%';
+  showToast(`✅ ${fileList.length} ${t('filesUploaded')}`);
+  await loadFiles();
+}
+
+// ==================== RENDER ====================
+function renderEntries() {
+  const list = document.getElementById('entriesList');
+  const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.device === currentFilter);
+  if (!filtered.length) { list.innerHTML = `<div class="empty" style="padding:14px;"><div style="font-size:11px;color:var(--muted);text-align:center;">${t('noRecords')}</div></div>`; return; }
+  list.innerHTML = filtered.map(e => `
+    <div class="entry-card" style="border-left:2px solid ${devColor(e.device)}" onclick="openDetail('${e.id}')">
+      <div class="entry-device" style="color:${devColor(e.device)}">${devName(e.device)}</div>
+      <div class="entry-title">${e.problem.substring(0,38)}${e.problem.length>38?'...':''}</div>
+      <div class="entry-sub">${e.date}</div>
+    </div>
+  `).join('');
+}
+
+function renderOverview() {
+  const list = document.getElementById('recentList');
+  if (!entries.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔧</div><div class="empty-title">${t('addFirst')}</div><div class="empty-desc">${t('eachRecord')}</div></div>`;
+    return;
+  }
+  list.innerHTML = `
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">${t('recentRecords')}</div>
+    ${entries.slice(0,6).map(e => `
+      <div class="card" style="cursor:pointer;margin-bottom:8px;border-left:3px solid ${devColor(e.device)}" onclick="openDetail('${e.id}')">
+        <div style="display:flex;gap:6px;margin-bottom:5px;align-items:center;">
+          <span class="badge ${devBadge(e.device)}">${devName(e.device)}</span>
+          <span style="font-size:9px;color:var(--muted);margin-left:auto;">${e.date}</span>
+        </div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:3px;">${e.problem}</div>
+        <div style="font-size:11px;color:var(--muted);">${(e.solution||'—').substring(0,70)}${e.solution?.length>70?'...':''}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderErrorCodes() {
+  const list = document.getElementById('ecList');
+  if (!errorCodes.length) { list.innerHTML = `<div class="empty" style="height:100px;"><div style="font-size:22px;">⚠️</div></div>`; return; }
+  list.innerHTML = `
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">${t('errorCodes')} (${errorCodes.length})</div>
+    <div class="ec-grid">
+      ${errorCodes.map(ec => `
+        <div class="ec-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="ec-code">${ec.code}</span>
+            <span class="badge ${devBadge(ec.device)}">${devName(ec.device)}</span>
+          </div>
+          <div class="ec-desc">${ec.description}</div>
+          ${ec.fix?`<div class="ec-fix">✓ ${ec.fix.substring(0,60)}</div>`:''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderFiles() {
+  const list = document.getElementById('filesList');
+  if (!files.length) { list.innerHTML = `<div class="empty" style="height:100px;"><div style="font-size:22px;">📁</div></div>`; return; }
+  const cats = { menu:'Menü', error_screen:'Hata', diagram:'Diyagram', other:'Diğer' };
+  list.innerHTML = `
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">${t('files')} (${files.length})</div>
+    <div class="files-grid">
+      ${files.map(f=>`
+        <div class="file-card">
+          <div class="file-thumb-placeholder">${f.filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)?'🖼️':'📄'}</div>
+          <div class="file-info">
+            <div class="file-name">${f.filename}</div>
+            <div class="file-meta">${devName(f.device)} · ${cats[f.category]||f.category}</div>
+            ${f.description?`<div style="font-size:9px;color:var(--muted);margin-top:2px;">${f.description}</div>`:''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function updateStats() {
+  ['ud1320','uc1800','uc500','urit1280','urit1600'].forEach(d => {
+    const el = document.getElementById('s-'+d);
+    if (el) el.textContent = entries.filter(e=>e.device===d).length;
+  });
+  document.getElementById('s-ec').textContent = errorCodes.length;
+  const conf = Math.min(100, entries.length*5 + errorCodes.length*8 + files.length*3);
+  document.getElementById('confFill').style.width = conf+'%';
+  document.getElementById('confLabel').textContent = conf===0?t('waitingData'):conf>=70?`${conf}% — 🔥`:conf>=40?`${conf}% — 📈`:`${conf}% — 📊`;
+}
+
+// ==================== DETAIL MODAL ====================
+function openDetail(id) {
+  selectedId = id;
+  const e = entries.find(x=>x.id===id); if (!e) return;
+  const results = { solved:t('solved'), partial:t('partial'), ongoing:t('ongoing'), unknown:t('unknown') };
+  document.getElementById('modalContent').innerHTML = `
+    <div>
+      <span class="badge ${devBadge(e.device)}">${devName(e.device)}</span>
+      <div style="font-size:19px;font-weight:800;margin:8px 0 3px;">${e.problem}</div>
+      <div style="font-size:10px;color:var(--muted);">${e.date} · ${results[e.result]||e.result}</div>
+    </div>
+    ${e.symptoms?`<div class="card" style="margin-top:12px;"><div class="card-title">${t('symptoms')}</div><div style="font-size:13px;line-height:1.6;">${e.symptoms}</div></div>`:''}
+    ${e.solution?`<div class="card"><div class="card-title">${t('solution')}</div><div style="font-size:13px;line-height:1.6;">${e.solution}</div></div>`:''}
+    ${e.parts?.length?`<div class="card"><div class="card-title">${t('parts')}</div><div class="parts-wrap">${e.parts.map(p=>`<span class="part-chip">${p}</span>`).join('')}</div></div>`:''}
+    ${e.notes?`<div class="card"><div class="card-title">${t('notes')}</div><div style="font-size:13px;line-height:1.6;">${e.notes}</div></div>`:''}
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-danger" onclick="deleteEntry('${e.id}')">🗑 ${t('deleted').replace('🗑 ','')}</button>
+    </div>
+  `;
+  document.getElementById('detailModal').style.display = 'block';
+}
+
+function closeModal() { document.getElementById('detailModal').style.display='none'; selectedId=null; }
+
+// ==================== AI ====================
+function buildCtx() {
+  let ctx = '';
+  if (entries.length) {
+    ctx += `REPAIR RECORDS (${entries.length}):\n`;
+    entries.forEach((e,i) => {
+      ctx += `[${i+1}] ${devName(e.device)}: ${e.problem}\n`;
+      if (e.symptoms) ctx += `  Symptoms: ${e.symptoms}\n`;
+      if (e.solution) ctx += `  Solution: ${e.solution}\n`;
+      if (e.parts?.length) ctx += `  Parts: ${e.parts.join(', ')}\n`;
+      if (e.notes) ctx += `  Notes: ${e.notes}\n`;
+    });
+  }
+  if (errorCodes.length) {
+    ctx += `\nERROR CODES (${errorCodes.length}):\n`;
+    errorCodes.forEach(ec => { ctx += `${ec.code} (${devName(ec.device)}/${ec.component}): ${ec.description}${ec.fix?' → '+ec.fix:''}\n`; });
+  }
+  if (files.length) {
+    ctx += `\nUPLOADED FILES (${files.length}):\n`;
+    files.forEach(f => { ctx += `${devName(f.device)} - ${f.category}: ${f.filename}${f.description?' ('+f.description+')':''}\n`; });
+  }
+  return ctx || 'No data yet.';
+}
+
+function quickAsk(q) { document.getElementById('aiInput').value = q; askAI(); }
+
+async function askAI() {
+  const q = document.getElementById('aiInput').value.trim();
+  if (!q || aiLoading) return;
+  aiLoading = true;
+  const chat = document.getElementById('aiChat');
+  chat.innerHTML += `<div class="msg user">${q}</div>`;
+  document.getElementById('aiInput').value = '';
+  const lid = 'l'+Date.now();
+  chat.innerHTML += `<div class="msg ai" id="${lid}"><div class="msg-label">▸ rURIT AI</div><div class="spinner"></div></div>`;
+  chat.scrollTop = chat.scrollHeight;
+  const btn = document.getElementById('aiBtn'); btn.disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        system:`You are rURIT, a medical device repair assistant specializing in Urit analyzers:
+- UD-1320: Automated urine sediment analyzer, flow cell technology, 3 pumps (sample/sheath/waste), CCD camera, LED optics, AI/CNN, 120T/H
+- UC-1800: Automated dry chemistry analyzer, CIS optics 5 wavelengths, 14 parameters, 4-way spray probe, 480T/H, FDA approved
+- UC-500: Combined analyzer - both sediment AND dry chemistry in one device, flow cell + strip reader
+- Urit-1280: Older generation sediment analyzer, horizontal design, 3-channel flow cell, predecessor to UD-1320
+- Urit-1600: Older generation dry chemistry strip reader, predecessor to UC-1800
+
+Knowledge base:
+${buildCtx()}
+
+Respond in the same language as the user's question. Be concise, technical, and reference similar past cases when available.`,
+        messages:[{role:'user', content:q}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c=>c.text||'').join('') || 'No response.';
+    document.getElementById(lid).innerHTML = `<div class="msg-label">▸ rURIT AI</div>${text.replace(/\n/g,'<br>')}`;
+  } catch {
+    document.getElementById(lid).innerHTML = `<div class="msg-label">▸ rURIT AI</div>Connection error.`;
+  }
+  aiLoading = false; btn.disabled = false;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ==================== TABS & FILTER ====================
+function showMainTab(name) {
+  document.querySelectorAll('.main-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['overview','add','errors','files','devices'][i]===name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  const p = document.getElementById('panel-'+name); if(p) p.classList.add('active');
+  if (name==='overview') renderOverview();
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.className = 'nav-tab';
+    const dev = t.onclick?.toString().match(/'([^']+)'/)?.[1] || 'all';
+  });
+  // Reset all tabs
+  document.querySelectorAll('.nav-tab').forEach(t => t.className = 'nav-tab');
+  // Find and activate the right tab
+  const tabs = document.querySelectorAll('.nav-tab');
+  tabs.forEach(tab => {
+    const onclick = tab.getAttribute('onclick') || '';
+    if ((f === 'all' && onclick.includes("'all'")) ||
+        (f !== 'all' && onclick.includes(`'${f}'`))) {
+      tab.className = `nav-tab act act-${f === 'all' ? 'ud1320' : f}`;
+    }
+  });
+  renderEntries();
+}
+
+// ==================== MOBILE ====================
+function toggleLeft() {
+  document.getElementById('sidebarLeft').classList.toggle('open');
+  document.getElementById('sidebarRight').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.toggle('open', document.getElementById('sidebarLeft').classList.contains('open'));
+}
+function toggleRight() {
+  document.getElementById('sidebarRight').classList.toggle('open');
+  document.getElementById('sidebarLeft').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.toggle('open', document.getElementById('sidebarRight').classList.contains('open'));
+}
+function closeDrawers() {
+  document.getElementById('sidebarLeft').classList.remove('open');
+  document.getElementById('sidebarRight').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type==='warn'?' warn':'');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+// ==================== START ====================
+init();
+</script>
+</body>
+</html>
